@@ -123,6 +123,7 @@ SMOTE <- function(x, y, k = 5) {
   return(list(
     x_new = x_new,
     y_new = y_new,
+    x_syn = x_syn,
     C = C
   ))
 
