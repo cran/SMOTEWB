@@ -4,7 +4,7 @@
 #' datasets using ADASYN.
 #'
 #' @param x feature matrix or data.frame.
-#' @param y a factor class variable. Can be multiclass.
+#' @param y a factor class variable with two classes.
 #' @param k number of neighbors. Default is 5.
 #'
 #' @details
@@ -135,7 +135,7 @@ ADASYN <- function(x, y, k = 5) {
   return(list(
     x_new = x_new,
     y_new = y_new,
-    x_syn = x_new[1:nrow(x_syn),,drop = FALSE],
+    x_syn = x_syn,
     C = C
   ))
 }

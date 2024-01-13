@@ -1,22 +1,15 @@
-#' @title  Synthetic Minority Oversampling Technique (SMOTE)
+#' @title  Random Walk Oversampling (SMOTE)
 #'
-#' @description Resampling with SMOTE.
+#' @description Resampling with RWO
 #'
 #' @param x feature matrix.
 #' @param y a factor class variable with two classes.
-#' @param k number of neighbors. Default is 5.
 #'
 #' @details
-#' SMOTE (Chawla et al., 2002) is an oversampling method which creates links
-#' between positive samples and nearest neighbors and generates synthetic
-#' samples along that link.
-#'
-#' It is well known that SMOTE is sensitive to noisy data. It may create more
-#' noise.
+#' RWO (Zhang and Li, 2014) is an oversampling method which generates data using
+#' variable standard error in a way that it preserves the variances of all variables.
 #'
 #' Can work with classes more than 2.
-#'
-#' Note: Much faster than \code{smotefamily::SMOTE()}.
 #'
 #' @return a list with resampled dataset.
 #'  \item{x_new}{Resampled feature matrix.}
@@ -26,14 +19,12 @@
 #'
 #' @author Fatih Saglam, saglamf89@gmail.com
 #'
-#' @importFrom  FNN get.knnx
-#' @importFrom  stats runif
+#' @importFrom  stats rnorm
 #' @importFrom  stats sd
 #'
 #' @references
-#' Chawla, N. V., Bowyer, K. W., Hall, L. O., & Kegelmeyer, W. P. (2002). SMOTE:
-#' synthetic minority over-sampling technique. Journal of artificial
-#' intelligence research, 16, 321-357.
+#' Zhang, H., & Li, M. (2014). RWO-Sampling: A random walk over-sampling
+#' approach to imbalanced data classification. Information Fusion, 20, 99-116.
 #'
 #' @examples
 #'
@@ -45,14 +36,14 @@
 #' plot(x, col = y)
 #'
 #' # resampling
-#' m <- SMOTE(x = x, y = y, k = 7)
+#' m <- RWO(x = x, y = y)
 #'
 #' plot(m$x_new, col = m$y_new)
 #'
-#' @rdname SMOTE
+#' @rdname RWO
 #' @export
 
-SMOTE <- function(x, y, k = 5) {
+RWO <- function(x, y) {
 
   if (!is.data.frame(x) & !is.matrix(x)) {
     stop("x must be a matrix or dataframe")
@@ -65,15 +56,6 @@ SMOTE <- function(x, y, k = 5) {
   if (!is.factor(y)) {
     stop("y must be a factor")
   }
-
-  if (!is.numeric(k)) {
-    stop("k must be numeric")
-  }
-
-  if (k < 1) {
-    stop("k must be positive")
-  }
-
   var_names <- colnames(x)
   x <- as.matrix(x)
   p <- ncol(x)
@@ -88,24 +70,18 @@ SMOTE <- function(x, y, k = 5) {
   x_syn_list <- list()
 
   for (i in 1:k_class) {
-    counter <- 0
-    NN_main2main <- FNN::get.knnx(data = x_classes[[i]], query = x_classes[[i]], k = k + 1)$nn.index[,-1]
-    x_main <- x_classes[[i]]
-
-    x_syn_list[[i]] <- matrix(data = NA, nrow = 0, ncol = p)
-    while (TRUE) {
-      if (counter == n_needed[i]) {
-        break
-      }
-      counter <- counter + 1
-
-      i_sample <- sample(1:n_classes[i], size = 1)
-      x_main_selected <- x_main[i_sample,,drop = FALSE]
-      x_target <- x_main[sample(NN_main2main[i_sample,], size = 1),,drop = FALSE]
-      r <- runif(1)
-
-      x_syn_list[[i]] <- rbind(x_syn_list[[i]], x_main_selected + r*(x_target - x_main_selected))
+    if (n_needed[i] == 0) {
+      next
     }
+
+    x_main <- x_classes[[i]]
+    se_main <- apply(x_main, 2, function(m) sd(m)/sqrt(length(m)))
+
+    noise <- sapply(1:p, function(m) {
+      rnorm(n_needed[i], sd = se_main[m])
+    })
+
+    x_syn_list[[i]] <- x_main[sample(1:n_classes[i], replace = TRUE, size = n_needed[i]),, drop = FALSE] + noise
   }
 
   x_syn <- do.call(rbind, x_syn_list)
