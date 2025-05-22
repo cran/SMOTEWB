@@ -6,6 +6,8 @@
 #' @param x feature matrix or data.frame.
 #' @param y a factor class variable with two classes.
 #' @param k number of neighbors. Default is 5.
+#' @param n_needed vector of desired number of synthetic samples for each class.
+#' A vector of integers for each class. Default is NULL meaning full balance.
 #'
 #' @details
 #' Adaptive Synthetic Sampling (ADASYN) is an extension of the Synthetic Minority Over-sampling Technique
@@ -14,7 +16,7 @@
 #' examples by focusing on the minority class examples that are harder to
 #' learn, meaning those examples that are closer to the decision boundary.
 #'
-#' Note: Much faster than \code{smotefamily::ADAS()}.
+#' Can work with classes more than 2.
 #'
 #' @return a list with resampled dataset.
 #'  \item{x_new}{Resampled feature matrix.}
@@ -51,7 +53,7 @@
 #' @rdname ADASYN
 #' @export
 
-ADASYN <- function(x, y, k = 5) {
+ADASYN <- function(x, y, k = 5, n_needed = NULL) {
 
   if (!is.data.frame(x) & !is.matrix(x)) {
     stop("x must be a matrix or dataframe")
@@ -77,65 +79,73 @@ ADASYN <- function(x, y, k = 5) {
   x <- as.matrix(x)
   p <- ncol(x)
 
-  class_names <- as.character(unique(y))
-  class_pos <- names(which.min(table(y)))
-  class_neg <- class_names[class_names != class_pos]
+  class_names <- as.character(levels(y))
+  n_classes <- sapply(class_names, function(m) sum(y == m))
+  k_class <- length(class_names)
+  x_classes <- lapply(class_names, function(m) x[y == m,, drop = FALSE])
 
-  x_pos <- x[y == class_pos,,drop = FALSE]
-  x_neg <- x[y == class_neg,,drop = FALSE]
-
-  n_pos <- nrow(x_pos)
-  n_neg <- nrow(x_neg)
-
-  x <- rbind(x_pos, x_neg)
-
-  k <- min(k, n_pos - 1)
-  nn_pos2all <- RANN::nn2(data = x, query = x_pos, k = k + 1)$nn.idx[,-1]
-  nn_pos2all_classcounts <- cbind(
-    rowSums(nn_pos2all <= n_pos),
-    rowSums(nn_pos2all > n_pos)
-  )
-  nn_pos2pos <- RANN::nn2(data = x_pos, query = x_pos, k = k + 1)$nn.idx[,-1]
-
-  n_syn <- (n_neg - n_pos)
-  if (sum(nn_pos2all_classcounts[,2]) == 0) {
-    w <- rep(1/n_syn, n_syn)
-  } else {
-    w <- nn_pos2all_classcounts[,2]/sum(nn_pos2all_classcounts[,2])
+  if (is.null(n_needed)) {
+    n_needed <- max(n_classes) - n_classes
   }
-  C <- round(n_syn*w)
+  if (length(n_needed) != k_class) {
+    stop("n_needed must be an integer vector matching the number of classes.")
+  }
 
-  x_syn <- matrix(nrow = 0, ncol = p)
-  for (i in 1:n_pos) {
-    if (C[i] == 0) {
+  x_syn_list <- list()
+
+  for (j in 1:k_class) {
+    x_syn_list[[j]] <- matrix(nrow = 0, ncol = p)
+    if (n_needed[j] == 0) {
       next
     }
-    NN_i <- nn_pos2pos[i,]
-    i_k <- sample(1:k, C[i], replace = TRUE)
-    lambda <- runif(C[i])
-    kk <- x_pos[NN_i,,drop = FALSE]
-    kk <- kk[i_k,]
-    x_pos_i_temp <- x_pos[rep(i, C[i]),,drop = FALSE]
-    x_syn_step <- x_pos_i_temp + (kk - x_pos_i_temp)*lambda
-    x_syn <- rbind(x_syn, x_syn_step)
+
+    n_main <- n_classes[j]
+    n_other <- sum(n_classes[-j])
+
+    nn_main2all <- RANN::nn2(data = x, query = x_classes[[j]], k = k + 1)$nn.idx[,-1]
+
+    count_main <- rowSums(matrix(y[nn_main2all] == class_names[j], nrow = nrow(nn_main2all), ncol = ncol(nn_main2all)))
+    count_other <- k - count_main
+    nn_main2all_classcounts <- cbind(
+      count_main,
+      count_other
+    )
+    nn_main2main <- RANN::nn2(data = x_classes[[j]], query = x_classes[[j]], k = k + 1)$nn.idx[,-1]
+
+    if (sum(nn_main2all_classcounts[,2]) == 0) {
+      w <- rep(1/n_needed[j], n_main)
+    } else {
+      w <- nn_main2all_classcounts[,2]/sum(nn_main2all_classcounts[,2])
+    }
+    C <- round(n_needed[j]*w)
+
+    for (i in 1:n_main) {
+      if (C[i] == 0) {
+        next
+      }
+      NN_i <- nn_main2main[i,]
+      i_k <- sample(1:k, C[i], replace = TRUE)
+      lambda <- runif(C[i])
+      kk <- x_classes[[j]][NN_i,,drop = FALSE]
+      kk <- kk[i_k,]
+      x_main_i_temp <- x_classes[[j]][rep(i, C[i]),,drop = FALSE]
+      x_syn_step <- x_main_i_temp + (kk - x_main_i_temp)*lambda
+      x_syn_list[[j]] <- rbind(x_syn_list[[j]], x_syn_step)
+    }
   }
 
-  x_new <- rbind(
-    x_syn,
-    x_pos,
-    x_neg
-  )
-  y_new <- c(
-    rep(class_pos, nrow(x_syn) + n_pos),
-    rep(class_neg, n_neg)
-  )
-  y_new <- factor(y_new, levels = levels(y), labels = levels(y))
+  x_syn <- do.call(rbind, x_syn_list)
+  y_syn <- factor(unlist(sapply(1:k_class, function(m) rep(class_names[m], n_needed[m]))), levels = class_names, labels = class_names)
+
+  x_new <- rbind(x, x_syn)
+  y_new <- c(y, y_syn)
   colnames(x_new) <- var_names
 
   return(list(
     x_new = x_new,
     y_new = y_new,
     x_syn = x_syn,
+    y_syn = y_syn,
     C = C
   ))
 }

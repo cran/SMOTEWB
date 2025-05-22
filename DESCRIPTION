@@ -1,7 +1,7 @@
 Package: SMOTEWB
 Type: Package
 Title: Imbalanced Resampling using SMOTE with Boosting (SMOTEWB)
-Version: 1.2.0
+Version: 1.2.2
 Authors@R: 
         c(person("Fatih", "Saglam", email = "saglamf89@gmail.com", 
         role = c("aut", "cre"), 
@@ -11,18 +11,19 @@ Description: Provides the SMOTE with Boosting (SMOTEWB) algorithm. See
       SMOTE-based resampling technique which creates synthetic data on the links 
       between nearest neighbors. SMOTEWB uses boosting weights to determine where
       to generate new samples and automatically decides the number of neighbors 
-      for eacg sample. It is robust to noise and outperforms most of the 
+      for each sample. It is robust to noise and outperforms most of the 
       alternatives according to Matthew Correlation Coefficient metric.
       Alternative resampling methods are also available in the package.
-Depends: R (>= 4.2)
+Depends: R (>= 4.4)
 Imports: stats, FNN, RANN, rpart, Rfast
 Suggests:
 License: MIT + file LICENSE
 Encoding: UTF-8
-RoxygenNote: 7.3.1
+RoxygenNote: 7.3.2
 NeedsCompilation: no
-Packaged: 2024-04-08 13:55:07 UTC; sagla
-Author: Fatih Saglam [aut, cre] (<https://orcid.org/0000-0002-2084-2008>)
+Packaged: 2025-05-22 08:54:22 UTC; sagla
+Author: Fatih Saglam [aut, cre] (ORCID:
+    <https://orcid.org/0000-0002-2084-2008>)
 Maintainer: Fatih Saglam <saglamf89@gmail.com>
 Repository: CRAN
-Date/Publication: 2024-04-08 15:10:02 UTC
+Date/Publication: 2025-05-22 09:10:01 UTC

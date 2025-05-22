@@ -4,7 +4,7 @@
 \alias{BLSMOTE}
 \title{Borderline Synthetic Minority Oversampling Technique}
 \usage{
-BLSMOTE(x, y, k1 = 5, k2 = 5, type = "type1")
+BLSMOTE(x, y, k1 = 5, k2 = 5, type = "type1", n_needed = NULL)
 }
 \arguments{
 \item{x}{feature matrix or data.frame.}
@@ -16,13 +16,15 @@ BLSMOTE(x, y, k1 = 5, k2 = 5, type = "type1")
 \item{k2}{number of neighbors to determine safe levels. Default is 5.}
 
 \item{type}{"type1" or "type2". Default is "type1".}
+
+\item{n_needed}{vector of desired number of synthetic samples for each class.
+A vector of integers for each class. Default is NULL meaning full balance.}
 }
 \value{
 a list with resampled dataset.
  \item{x_new}{Resampled feature matrix.}
  \item{y_new}{Resampled target variable.}
  \item{x_syn}{Generated synthetic data.}
- \item{C}{Number of synthetic samples for each positive class samples.}
 }
 \description{
 \code{BLSMOTE()} applies BLSMOTE (Borderline-SMOTE) which is a
@@ -36,7 +38,7 @@ instances. These instances are more informative and potentially more
 challenging for classification, and thus generating synthetic samples in
 their vicinity can be more effective than generating them randomly.
 
-Note: Much faster than \code{smotefamily::BLSMOTE()}.
+Can work with classes more than 2.
 }
 \examples{
 
